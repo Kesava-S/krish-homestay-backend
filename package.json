@@ -1,0 +1,16 @@
+{
+    "name": "krish-homestay-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "build": "cd frontend && npm install && npm run build && cd .. && mkdir -p dist && cp -r frontend/dist/* dist/"
+    },
+    "dependencies": {
+        "googleapis": "^126.0.1",
+        "stripe": "^13.10.0",
+        "@vercel/node": "^3.0.0"
+    },
+    "engines": {
+        "node": "18.x"
+    }
+}
