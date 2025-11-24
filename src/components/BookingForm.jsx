@@ -48,7 +48,7 @@ const BookingForm = () => {
         const amountInPaise = availability.total * 100; // Convert to paise
 
         const options = {
-            key: "YOUR_RAZORPAY_KEY_ID", // Replace with your actual Razorpay Key ID
+            key: "rzp_test_Rjaqp52g9afmt5", // Public Key ID
             amount: amountInPaise,
             currency: "INR",
             name: "Krish Homestay",
