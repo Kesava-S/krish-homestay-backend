@@ -13,6 +13,11 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import './index.css';
 
+import CancellationRefund from './pages/CancellationRefund';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Shipping from './pages/Shipping';
+
 // Layout component to handle conditional rendering of Navbar/Footer
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -42,6 +47,10 @@ function App() {
           <Route path="/rules" element={<HouseRules />} />
           <Route path="/attractions" element={<NearbyAttractions />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/cancellation-refund" element={<CancellationRefund />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/shipping" element={<Shipping />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Routes>
