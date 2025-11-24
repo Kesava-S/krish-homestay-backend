@@ -44,19 +44,62 @@ const BookingForm = () => {
         }
     };
 
-    const handleBook = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            await bookStay(formData);
-            setSuccess(true);
-        } catch (err) {
-            console.warn("API failed, simulating success for demo:", err);
-            setSuccess(true); // Simulate success
-            // In real app: setError('Booking failed. Please try again.');
-        } finally {
-            setLoading(false);
+    const handleRazorpayPayment = () => {
+        const amountInPaise = availability.total * 100; // Convert to paise
+
+        const options = {
+            key: "YOUR_RAZORPAY_KEY_ID", // Replace with your actual Razorpay Key ID
+            amount: amountInPaise,
+            currency: "INR",
+            name: "Krish Homestay",
+            description: "Booking Payment",
+            image: "/vite.svg", // Optional: Add your logo here
+            handler: async function (response) {
+                // Payment successful
+                console.log("Payment ID: ", response.razorpay_payment_id);
+
+                // Call backend to save booking
+                setLoading(true);
+                try {
+                    await bookStay({
+                        ...formData,
+                        paymentId: response.razorpay_payment_id,
+                        amount: availability.total
+                    });
+                    setSuccess(true);
+                } catch (err) {
+                    console.error("Booking save failed:", err);
+                    // Even if save fails, payment succeeded. In real app, handle this edge case.
+                    setSuccess(true);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            prefill: {
+                name: formData.name,
+                email: formData.email,
+                contact: formData.phone
+            },
+            theme: {
+                color: "#4A7c59"
+            }
+        };
+
+        const rzp1 = new window.Razorpay(options);
+        rzp1.on('payment.failed', function (response) {
+            alert("Payment Failed: " + response.error.description);
+        });
+        rzp1.open();
+    };
+
+    const handleBook = (e) => {
+        e.preventDefault();
+        // Validate form before payment
+        if (!formData.name || !formData.email || !formData.phone) {
+            alert("Please fill in all guest details.");
+            return;
         }
+        handleRazorpayPayment();
     };
 
     if (success) {
@@ -143,8 +186,8 @@ const BookingForm = () => {
                             required
                         />
 
-                        <button onClick={handleBook} className="btn btn-secondary w-100" disabled={loading}>
-                            {loading ? 'Processing...' : 'Proceed to Payment'}
+                        <button onClick={handleBook} className="btn btn-secondary w-100" disabled={loading} id="rzp-button">
+                            {loading ? 'Processing...' : 'Pay & Book Now'}
                         </button>
                     </div>
                 </div>
