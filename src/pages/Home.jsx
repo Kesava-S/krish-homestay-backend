@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaWifi, FaParking, FaMountain, FaUtensils, FaShieldAlt, FaLeaf } from 'react-icons/fa';
+import { FaWifi, FaParking, FaMountain, FaUtensils, FaShieldAlt, FaLeaf, FaWhatsapp } from 'react-icons/fa';
 import BookingForm from '../components/BookingForm';
 import './Home.css';
 
@@ -13,7 +13,18 @@ const Home = () => {
                     <div className="hero-text">
                         <h1>Stay in a traditional Kerala home where tranquility and cleanliness come first.</h1>
                         <p>With soothing mountain views and a naturally calm atmosphere, it’s the perfect retreat for travellers seeking an immersive, genuine Munnar experience.</p>
-                        <Link to="/booking" className="btn btn-secondary">Book Your Stay</Link>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'flex-start' }}>
+                            <Link to="/booking" className="btn btn-secondary">Book Your Stay</Link>
+                            <a
+                                href="https://wa.me/917305395094"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-secondary"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                            >
+                                <FaWhatsapp /> Chat on WhatsApp
+                            </a>
+                        </div>
                     </div>
                     <div className="hero-booking">
                         <BookingForm />
