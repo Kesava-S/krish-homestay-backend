@@ -24,3 +24,15 @@ export async function getAvailability(date: string) {
 
     return res.data.values || [];
 }
+
+export async function getBookings() {
+    const client = getOAuthClient();
+    const sheets = google.sheets({ version: "v4", auth: client });
+
+    const res = await sheets.spreadsheets.values.get({
+        spreadsheetId: process.env.GOOGLE_SHEETS_ID!,
+        range: "Bookings!A:Z"
+    });
+
+    return res.data.values || [];
+}
