@@ -3,9 +3,10 @@ import { addBooking } from "../../lib/sheets";
 import { addBookingToCalendar } from "../../lib/calendar";
 import { sendEmail } from "../../lib/email";
 import { razorpay } from "../../lib/razorpay";
+import { uploadGuestID } from "../../lib/drive";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    const { name, email, phone, checkIn, checkOut, amount, paymentId } = req.body;
+    const { name, email, phone, checkIn, checkOut, amount, paymentId, guestIDFilePath } = req.body;
 
     if (!name || !email || !checkIn || !checkOut || !amount) {
         return res.status(400).json({ success: false, message: "Missing fields" });
@@ -28,9 +29,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const bookingID = "BKG-" + Date.now();
 
+    let driveFileId = null;
+    if (guestIDFilePath) {
+        const guestIDFileName = `GuestID-${name}-${Date.now()}.pdf`;
+        try {
+            driveFileId = await uploadGuestID(guestIDFilePath, guestIDFileName);
+        } catch (error) {
+            console.error("Failed to upload guest ID:", error);
+        }
+    }
+
     // Add to Google Sheet
     await addBooking([
-        bookingID, name, email, phone, checkIn, checkOut, amount, paymentId ? "Paid (Razorpay)" : "Pending"
+        bookingID, name, email, phone, checkIn, checkOut, amount, paymentId ? "Paid (Razorpay)" : "Pending", driveFileId
     ]);
 
     // Add to Calendar
