@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { checkAvailability, bookStay } from '../services/api';
 import './BookingForm.css';
 
@@ -6,7 +6,9 @@ const BookingForm = () => {
     const [formData, setFormData] = useState({
         checkIn: '',
         checkOut: '',
-        guests: 1,
+        guestCategory: '5-7', // Default
+        adults: 2,
+        children: 0,
         name: '',
         email: '',
         phone: ''
@@ -16,12 +18,57 @@ const BookingForm = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
+    // Get today's date for min attribute
+    const today = new Date().toISOString().split('T')[0];
+
+    const guestCategories = [
+        { id: '5-7', label: '5–7 Guests', price: 5000, maxTotal: 7 },
+        { id: '8-15', label: '8–15 Guests', price: 7000, maxTotal: 15 },
+        { id: '2-4', label: '2–4 Guests', price: 2000, maxTotal: 4 },
+    ];
+
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-        // Reset availability if dates change
-        if (e.target.name === 'checkIn' || e.target.name === 'checkOut') {
-            setAvailability(null);
-        }
+        const { name, value } = e.target;
+        setFormData(prev => {
+            const newData = { ...prev, [name]: value };
+
+            // Reset availability if dates change
+            if (name === 'checkIn' || name === 'checkOut') {
+                setAvailability(null);
+            }
+
+            return newData;
+        });
+    };
+
+    const handleGuestCategoryChange = (categoryId) => {
+        setFormData(prev => ({
+            ...prev,
+            guestCategory: categoryId,
+            adults: 1, // Reset counts on category change
+            children: 0
+        }));
+    };
+
+    const handleCountChange = (type, operation) => {
+        setFormData(prev => {
+            const currentTotal = prev.adults + prev.children;
+            const category = guestCategories.find(c => c.id === prev.guestCategory);
+            const max = category ? category.maxTotal : 15;
+
+            let newAdults = prev.adults;
+            let newChildren = prev.children;
+
+            if (type === 'adults') {
+                if (operation === 'inc' && currentTotal < max) newAdults++;
+                if (operation === 'dec' && newAdults > 1) newAdults--;
+            } else {
+                if (operation === 'inc' && currentTotal < max) newChildren++;
+                if (operation === 'dec' && newChildren > 0) newChildren--;
+            }
+
+            return { ...prev, adults: newAdults, children: newChildren };
+        });
     };
 
     const handleCheckAvailability = async (e) => {
@@ -33,43 +80,82 @@ const BookingForm = () => {
                 checkIn: formData.checkIn,
                 checkOut: formData.checkOut
             });
-            setAvailability(result);
+
+            // Logic to handle partial availability
+            // Assuming backend returns { available: true/false, existingBookingType: '5-7' | null }
+            // For now, we simulate this logic or use the result directly
+
+            if (result.available) {
+                setAvailability({
+                    available: true,
+                    price: getPriceForCategory(formData.guestCategory),
+                    total: calculateTotal(formData.checkIn, formData.checkOut, getPriceForCategory(formData.guestCategory))
+                });
+            } else if (result.existingBookingType === '5-7') {
+                // Special rule: If 5-7 booked, allow 2-4
+                if (formData.guestCategory === '2-4') {
+                    setAvailability({
+                        available: true,
+                        price: 2000,
+                        total: calculateTotal(formData.checkIn, formData.checkOut, 2000),
+                        note: "You will get only one room in the villa. Other rooms are occupied."
+                    });
+                } else {
+                    setAvailability({ available: false, message: "Dates are partially booked. Only 2-4 guest slots available." });
+                }
+            } else {
+                setAvailability({ available: false });
+            }
+
         } catch (err) {
-            // For demo purposes, we'll simulate availability if API fails (since backend isn't real yet)
-            console.warn("API failed, simulating availability for demo:", err);
-            setAvailability({ available: true, price: 2500, total: 5000 });
-            // In real app: setError('Could not check availability. Please try again.');
+            console.warn("API failed, simulating for demo:", err);
+            // Fallback simulation
+            setAvailability({
+                available: true,
+                price: getPriceForCategory(formData.guestCategory),
+                total: calculateTotal(formData.checkIn, formData.checkOut, getPriceForCategory(formData.guestCategory))
+            });
         } finally {
             setLoading(false);
         }
     };
 
+    const getPriceForCategory = (catId) => {
+        const cat = guestCategories.find(c => c.id === catId);
+        return cat ? cat.price : 0;
+    };
+
+    const calculateTotal = (start, end, pricePerNight) => {
+        const s = new Date(start);
+        const e = new Date(end);
+        const diffTime = Math.abs(e - s);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays * pricePerNight;
+    };
+
     const handleRazorpayPayment = () => {
-        const amountInPaise = availability.total * 100; // Convert to paise
+        if (!availability) return;
+        const amountInPaise = availability.total * 100;
 
         const options = {
-            key: "rzp_test_Rjaqp52g9afmt5", // Public Key ID
+            key: "rzp_test_Rjaqp52g9afmt5",
             amount: amountInPaise,
             currency: "INR",
             name: "Krish Homestay",
             description: "Booking Payment",
-            image: "/vite.svg", // Optional: Add your logo here
+            image: "/vite.svg",
             handler: async function (response) {
-                // Payment successful
-                console.log("Payment ID: ", response.razorpay_payment_id);
-
-                // Call backend to save booking
                 setLoading(true);
                 try {
                     await bookStay({
                         ...formData,
                         paymentId: response.razorpay_payment_id,
-                        amount: availability.total
+                        amount: availability.total,
+                        guestCount: formData.adults + formData.children
                     });
                     setSuccess(true);
                 } catch (err) {
                     console.error("Booking save failed:", err);
-                    // Even if save fails, payment succeeded. In real app, handle this edge case.
                     setSuccess(true);
                 } finally {
                     setLoading(false);
@@ -94,7 +180,6 @@ const BookingForm = () => {
 
     const handleBook = (e) => {
         e.preventDefault();
-        // Validate form before payment
         if (!formData.name || !formData.email || !formData.phone) {
             alert("Please fill in all guest details.");
             return;
@@ -115,13 +200,15 @@ const BookingForm = () => {
 
     return (
         <div className="booking-form-container">
-            <h3>Book Your Stay</h3>
+            <h4 className="villa-heading">Book your private 3BHK villa in Munnar</h4>
+
             <form onSubmit={handleCheckAvailability}>
                 <div className="form-group">
                     <label>Check-in Date</label>
                     <input
                         type="date"
                         name="checkIn"
+                        min={today}
                         value={formData.checkIn}
                         onChange={handleChange}
                         required
@@ -132,18 +219,49 @@ const BookingForm = () => {
                     <input
                         type="date"
                         name="checkOut"
+                        min={formData.checkIn || today}
                         value={formData.checkOut}
                         onChange={handleChange}
                         required
                     />
                 </div>
+
                 <div className="form-group">
-                    <label>Guests</label>
-                    <select name="guests" value={formData.guests} onChange={handleChange}>
-                        {[4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
-                            <option key={num} value={num}>{num} Guest{num > 1 ? 's' : ''}</option>
+                    <label>Select Guest Category</label>
+                    <div className="guest-categories">
+                        {guestCategories.map(cat => (
+                            <label key={cat.id} className={`category - option ${formData.guestCategory === cat.id ? 'selected' : ''} `}>
+                                <input
+                                    type="radio"
+                                    name="guestCategory"
+                                    value={cat.id}
+                                    checked={formData.guestCategory === cat.id}
+                                    onChange={() => handleGuestCategoryChange(cat.id)}
+                                />
+                                {cat.label}
+                            </label>
                         ))}
-                    </select>
+                    </div>
+                </div>
+
+                <div className="form-group guest-counts">
+                    <div className="count-control">
+                        <label>Adults</label>
+                        <div className="counter">
+                            <button type="button" onClick={() => handleCountChange('adults', 'dec')}>-</button>
+                            <span>{formData.adults}</span>
+                            <button type="button" onClick={() => handleCountChange('adults', 'inc')}>+</button>
+                        </div>
+                    </div>
+                    <div className="count-control">
+                        <label>Children</label>
+                        <div className="counter">
+                            <button type="button" onClick={() => handleCountChange('children', 'dec')}>-</button>
+                            <span>{formData.children}</span>
+                            <button type="button" onClick={() => handleCountChange('children', 'inc')}>+</button>
+                        </div>
+                    </div>
+                    <p className="text-small">Max total guests: {guestCategories.find(c => c.id === formData.guestCategory)?.maxTotal}</p>
                 </div>
 
                 {!availability && (
@@ -153,8 +271,9 @@ const BookingForm = () => {
                 )}
             </form>
 
-            {availability && availability.available && (
+            {availability && (availability.available || availability.note) && (
                 <div className="availability-result">
+                    {availability.note && <p className="note-text">{availability.note}</p>}
                     <p className="success-text">Dates are available!</p>
                     <p>Price per night: ₹{availability.price}</p>
                     <p className="total-price">Total: ₹{availability.total}</p>
@@ -195,7 +314,8 @@ const BookingForm = () => {
 
             {availability && !availability.available && (
                 <div className="availability-result">
-                    <p className="error-text">Sorry, these dates are not available.</p>
+                    <p className="error-text">{availability.message || "Sorry, these dates are not available."}</p>
+                    <button className="btn btn-outline w-100 mt-2" onClick={() => setAvailability(null)}>Check Other Dates</button>
                 </div>
             )}
 

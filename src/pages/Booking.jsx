@@ -21,7 +21,7 @@ const Booking = () => {
                             <li>✓ Instant Confirmation</li>
                             <li>✓ No Hidden Fees</li>
                             <li>✓ Flexible Cancellation (up to 5 days before)</li>
-                            <li>✓ Secure Payment via Stripe</li>
+                            <li>✓ Secure payment via Razorpay</li>
                         </ul>
 
                         <div className="room-preview">
